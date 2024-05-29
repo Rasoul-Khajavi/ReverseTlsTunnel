@@ -122,17 +122,29 @@ install_rtt_custom() {
 # Function to configure arguments based on user's choice
 configure_arguments() {
     read -p "Which server do you want to use? (Enter '1' for Iran(internal-server) or '2' for Kharej(external-server) ) : " server_choice
-    read -p "Please Enter SNI (default : sheypoor.com): " sni
-    sni=${sni:-sheypoor.com}
-
     if [ "$server_choice" == "2" ]; then
         read -p "How many Iran servers do you have? : " num_servers
-        arguments=()
-        for ((i=1; i<=num_servers; i++)); do
-            read -p "Please Enter IRAN IP for server $i: " server_ip
-            read -p "Please Enter Password for server $i (Please choose the same password on both servers): " password
-            arguments+=("--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24 --connection-age:4800 --parallel-cons:18")
-        done
+        if ! [[ "$num_servers" =~ ^[0-9]+$ ]]; then
+            echo "Error: Please enter a valid number of servers."
+            exit 1
+        fi
+        if [ "$num_servers" == 1 ]; then
+            read -p "Please Enter IRAN IP(internal-server) : " server_ip
+            read -p "Please Enter SNI (default : sheypoor.com): " sni
+            sni=${sni:-sheypoor.com}
+            read -p "Please Enter Password (Please choose the same password on both servers): " password
+            arguments="--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24"
+        else  
+            arguments=()
+            for ((i=1; i<=num_servers; i++)); do
+                read -p "Please Enter IRAN IP for server $i: " server_ip
+                read -p "Please Enter SNI for server $i (default : sheypoor.com): " sni
+                sni=${sni:-sheypoor.com}
+                read -p "Please Enter Password for server $i (Please choose the same password on both servers): " password
+            
+                arguments+=("--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24 --connection-age:4800 --parallel-cons:18")
+            done
+        fi
     elif [ "$server_choice" == "1" ]; then
         read -p "Please Enter Password (Please choose the same password on both servers): " password
         read -p "Do you want to use fake upload? (yes/no): " use_fake_upload
@@ -162,12 +174,34 @@ install() {
     cd /etc/systemd/system
 
     if [ "$server_choice" == "2" ]; then
-        for ((i=1; i<=num_servers; i++)); do
-            service_name="tunnel$i.service"
-            service_arguments="${arguments[$i-1]}"
+        if [ "$num_servers" == 1 ]; then
+            # Create a new service file named tunnel.service
+            cat <<EOL > tunnel.service
+[Unit]
+Description=my tunnel service
+
+[Service]
+Type=idle
+User=root
+WorkingDirectory=/root
+ExecStart=/root/RTT $arguments
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOL
+
+            # Reload systemctl daemon and start the service
+            sudo systemctl daemon-reload
+            sudo systemctl start tunnel.service
+            sudo systemctl enable tunnel.service
+        else
+            for ((i=1; i<=num_servers; i++)); do
+                service_name="tunnel$i.service"
+                service_arguments="${arguments[$i-1]}"
             
-            # Create a new service file for each server
-            cat <<EOL > $service_name
+                # Create a new service file for each server
+                cat <<EOL > $service_name
 [Unit]
 Description=my tunnel service for server $i
 
@@ -181,7 +215,8 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 EOL
-        done
+            done
+        fi
     elif [ "$server_choice" == "1" ]; then
         # Create a single service for Normal tunnel
         cat <<EOL > tunnel.service
@@ -203,7 +238,7 @@ EOL
     # Reload systemctl daemon and start the services
     sudo systemctl daemon-reload
 
-    if [ "$server_choice" == "2" ]; then
+    if [ "$server_choice" == "2" ] && [ "$num_servers" != 1 ]; then
         for ((i=1; i<=num_servers; i++)); do
             service_name="tunnel$i.service"
             sudo systemctl start $service_name
