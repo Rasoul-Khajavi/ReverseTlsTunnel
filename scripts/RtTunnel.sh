@@ -54,7 +54,7 @@ check_dependencies() {
 # Function to check if any tunnel service is already installed
 check_installed() {
     if [ -f "/etc/systemd/system/tunnel.service" ]; then
-        echo "The internal server service is already installed."
+        echo "The service is already installed."
         exit 1
     fi
     
