@@ -51,10 +51,22 @@ check_dependencies() {
     done
 }
 
-#Check installed service
+# Function to check if any tunnel service is already installed
 check_installed() {
     if [ -f "/etc/systemd/system/tunnel.service" ]; then
-        echo "The service is already installed."
+        echo "The internal server service is already installed."
+        exit 1
+    fi
+    
+    # Check for external server services
+    multiple_tunnel=false
+    for ((i=1; i<=10; i++)); do
+        if [ -f "/etc/systemd/system/tunnel$i.service" ]; then
+            echo "tunnel$i.service is already installed."
+            multiple_tunnel=true
+        fi  
+    done
+    if [ "$multiple_tunnel" = true ]; then
         exit 1
     fi
 }
@@ -114,9 +126,13 @@ configure_arguments() {
     sni=${sni:-sheypoor.com}
 
     if [ "$server_choice" == "2" ]; then
-        read -p "Please Enter IRAN IP(internal-server) : " server_ip
-        read -p "Please Enter Password (Please choose the same password on both servers): " password
-        arguments="--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24 --connection-age:4800 --parallel-cons:18"
+        read -p "How many Iran servers do you have? : " num_servers
+        arguments=()
+        for ((i=1; i<=num_servers; i++)); do
+            read -p "Please Enter IRAN IP for server $i: " server_ip
+            read -p "Please Enter Password for server $i (Please choose the same password on both servers): " password
+            arguments+=("--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24 --connection-age:4800 --parallel-cons:18")
+        done
     elif [ "$server_choice" == "1" ]; then
         read -p "Please Enter Password (Please choose the same password on both servers): " password
         read -p "Do you want to use fake upload? (yes/no): " use_fake_upload
@@ -139,13 +155,36 @@ install() {
     check_dependencies
     check_installed
     install_selected_version
-    # Change directory to /etc/systemd/system
-    cd /etc/systemd/system
 
     configure_arguments
 
-    # Create a new service file named tunnel.service
-    cat <<EOL > tunnel.service
+    # Change directory to /etc/systemd/system
+    cd /etc/systemd/system
+
+    if [ "$server_choice" == "2" ]; then
+        for ((i=1; i<=num_servers; i++)); do
+            service_name="tunnel$i.service"
+            service_arguments="${arguments[$i-1]}"
+            
+            # Create a new service file for each server
+            cat <<EOL > $service_name
+[Unit]
+Description=my tunnel service for server $i
+
+[Service]
+Type=idle
+User=root
+WorkingDirectory=/root
+ExecStart=/root/RTT $service_arguments
+Restart=always
+
+[Install]
+WantedBy=multi-user.target
+EOL
+        done
+    elif [ "$server_choice" == "1" ]; then
+        # Create a single service for Normal tunnel
+        cat <<EOL > tunnel.service
 [Unit]
 Description=my tunnel service
 
@@ -159,12 +198,23 @@ Restart=always
 [Install]
 WantedBy=multi-user.target
 EOL
+    fi
 
-    # Reload systemctl daemon and start the service
+    # Reload systemctl daemon and start the services
     sudo systemctl daemon-reload
-    sudo systemctl start tunnel.service
-    sudo systemctl enable tunnel.service
+
+    if [ "$server_choice" == "2" ]; then
+        for ((i=1; i<=num_servers; i++)); do
+            service_name="tunnel$i.service"
+            sudo systemctl start $service_name
+            sudo systemctl enable $service_name
+        done
+    elif [ "$server_choice" == "1" ]; then
+        sudo systemctl start tunnel.service
+        sudo systemctl enable tunnel.service
+    fi
 }
+
 
 check_lbinstalled() {
     if [ -f "/etc/systemd/system/lbtunnel.service" ]; then
@@ -276,24 +326,56 @@ lb_uninstall() {
 
 # Function to handle uninstallation
 uninstall() {
-    # Check if the service is installed
-    if [ ! -f "/etc/systemd/system/tunnel.service" ]; then
-        echo "The service is not installed."
+    normal_tunnel=false
+    multiple_tunnel=false
+
+    # Check if the normal_tunnel service is installed
+    if [ -f "/etc/systemd/system/tunnel.service" ]; then
+        normal_tunnel=true
+    fi
+
+    # Check if any multiple_tunnel services are installed
+    for ((i=1; i<=10; i++)); do
+        if [ -f "/etc/systemd/system/tunnel$i.service" ]; then
+            multiple_tunnel=true
+            break
+        fi
+    done
+
+    if [ "$normal_tunnel" = false ] && [ "$multiple_tunnel" = false ]; then
+        echo "No tunnel services are installed."
         return
     fi
 
-    # Stop and disable the service
-    sudo systemctl stop tunnel.service
-    sudo systemctl disable tunnel.service
+    # Stop and disable the normal_tunnel service if it exists
+    if [ "$normal_tunnel" = true ]; then
+        sudo systemctl stop tunnel.service
+        sudo systemctl disable tunnel.service
+        sudo rm /etc/systemd/system/tunnel.service
+    fi
 
-    # Remove service file
-    sudo rm /etc/systemd/system/tunnel.service
+    # Stop and disable any external services if they exist
+    if [ "$multiple_tunnel" = true ]; then
+        for ((i=1; i<=10; i++)); do
+            service_name="tunnel$i.service"
+            if [ -f "/etc/systemd/system/$service_name" ]; then
+                sudo systemctl stop $service_name
+                sudo systemctl disable $service_name
+                sudo rm /etc/systemd/system/$service_name
+            fi
+        done
+    fi
+
+    # Reset systemd state
     sudo systemctl reset-failed
-    sudo rm RTT
-    sudo rm install.sh 2>/dev/null
+
+    # Remove any additional files
+    sudo rm /root/RTT 2>/dev/null
+    sudo rm /root/install.sh 2>/dev/null
 
     echo "Uninstallation completed successfully."
 }
+
 
 update_services() {
     # Get the current installed version of RTT
@@ -386,46 +468,126 @@ compile() {
     echo "RTT file is located at: ReverseTlsTunnel/dist"
 }
 
-# Function to start the tunnel service
+# Function to start the tunnel services
 start_tunnel() {
-    # Check if the service is installed
+    normal_tunnel=false
+    multiple_tunnel=false
+
+    # Check if the normal_tunnel service is installed
     if sudo systemctl is-enabled --quiet tunnel.service; then
-        # Service is installed, start it
+        normal_tunnel=true
+    fi
+
+    # Check if any multiple_tunnel services are installed
+    for ((i=1; i<=10; i++)); do
+        if sudo systemctl is-enabled --quiet tunnel$i.service; then
+            multiple_tunnel=true
+            break
+        fi
+    done
+
+    if [ "$normal_tunnel" = false ] && [ "$multiple_tunnel" = false ]; then
+        echo "No tunnel services are installed."
+        return
+    fi
+
+    # Start the normal_tunnel service if it exists
+    if [ "$normal_tunnel" = true ]; then
         sudo systemctl start tunnel.service > /dev/null 2>&1
-
         if sudo systemctl is-active --quiet tunnel.service; then
-            echo "Tunnel service started."
+            echo "Normal tunnel service started."
         else
-            echo "Tunnel service failed to start."
+            echo "Normal tunnel service failed to start."
         fi
-    else
-        echo "Multiport Tunnel is not installed."
+    fi
+
+    # Start any multiple_tunnel services if they exist
+    if [ "$multiple_tunnel" = true ]; then
+        for ((i=1; i<=10; i++)); do
+            service_name="tunnel$i.service"
+            if sudo systemctl is-enabled --quiet $service_name; then
+                sudo systemctl start $service_name > /dev/null 2>&1
+                if sudo systemctl is-active --quiet $service_name; then
+                    echo "Multiple tunnel service $service_name started."
+                else
+                    echo "Multiple tunnel service $service_name failed to start."
+                fi
+            fi
+        done
     fi
 }
 
+# Function to stop the tunnel services
 stop_tunnel() {
-    # Check if the service is installed
-    if sudo systemctl is-enabled --quiet tunnel.service; then
-        # Service is installed, stop it
-        sudo systemctl stop tunnel.service > /dev/null 2>&1
+    normal_tunnel=false
+    multiple_tunnel=false
 
-        if sudo systemctl is-active --quiet tunnel.service; then
-            echo "Tunnel service failed to stop."
-        else
-            echo "Tunnel service stopped."
+    # Check if the normal_tunnel service is installed
+    if sudo systemctl is-enabled --quiet tunnel.service; then
+        normal_tunnel=true
+    fi
+
+    # Check if any multiple_tunnel services are installed
+    for ((i=1; i<=10; i++)); do
+        service_name="tunnel$i.service"
+        if sudo systemctl is-enabled --quiet $service_name; then
+            multiple_tunnel=true
+            break
         fi
-    else
-        echo "Multiport Tunnel is not installed."
+    done
+
+    if [ "$normal_tunnel" = false ] && [ "$multiple_tunnel" = false ]; then
+        echo "No tunnel services are installed."
+        return
+    fi
+
+    # Stop the normal_tunnel service if it exists
+    if [ "$normal_tunnel" = true ]; then
+        sudo systemctl stop tunnel.service > /dev/null 2>&1
+        if sudo systemctl is-active --quiet tunnel.service; then
+            echo "Normal tunnel service failed to stop."
+        else
+            echo "Normal tunnel service stopped."
+        fi
+    fi
+
+    # Stop any multiple_tunnel services if they exist
+    if [ "$multiple_tunnel" = true ]; then
+        for ((i=1; i<=10; i++)); do
+            service_name="tunnel$i.service"
+            if sudo systemctl is-enabled --quiet $service_name; then
+                sudo systemctl stop $service_name > /dev/null 2>&1
+                if sudo systemctl is-active --quiet $service_name; then
+                    echo "Multiple tunnel service $service_name failed to stop."
+                else
+                    echo "Multiple tunnel service $service_name stopped."
+                fi
+            fi
+        done
     fi
 }
+
 
 check_tunnel_status() {
-    # Check the status of the tunnel service
+    # Check if the normal_tunnel service is running
     if sudo systemctl is-active --quiet tunnel.service; then
-        echo -e "${yellow}Multiport is: ${green}    [running ✔]${rest}"
+        echo -e "${yellow}Normal Tunnel service status:${green}    [running ✔ ]${rest}"
     else
-        echo -e "${yellow}Multiport is:${red}    [Not running ✗ ]${rest}"
+        echo -e "${yellow}Normal Tunnel service status:${red}    [Not running ✗ ]${rest}"
     fi
+
+    # Check if any multiple_tunnel services are running
+    for ((i=1; i<=10; i++)); do
+        service_name="tunnel$i.service"
+        if [ -f "/etc/systemd/system/tunnel$i.service" ]; then
+            if sudo systemctl is-active --quiet $service_name; then
+                echo -e "${yellow} $service_name status:${green}    [running ✔ ]${rest}"
+            else
+                echo -e "${yellow} $service_name status:${red}    [Not running ✗ ]${rest}"
+            fi
+        fi
+        
+    done
 }
 
 # Function to start the tunnel service
@@ -577,7 +739,7 @@ version=$(./RTT -v 2>&1 | grep -o 'version="[0-9.]*"')
 
 # Main menu
 clear
-echo -e "${cyan}By --> Peyman * Github.com/Ptechgithub * ${rest}"
+echo -e "${cyan}By --> Rasoul * Github.com/Rasoul-Khajavi * ${rest}"
 echo -e "Your IP is: ${cyan}($myip)${rest} "
 echo -e "${yellow}******************************${rest}"
 check_tunnel_status
