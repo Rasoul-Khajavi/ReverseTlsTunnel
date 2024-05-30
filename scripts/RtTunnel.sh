@@ -511,7 +511,7 @@ start_tunnel() {
     multiple_tunnel=false
 
     # Check if the normal_tunnel service is installed
-    if sudo systemctl is-enabled --quiet tunnel.service; then
+    if sudo systemctl is-enabled --quiet tunnel.service 2>/dev/null; then
         normal_tunnel=true
     fi
 
@@ -544,7 +544,7 @@ start_tunnel() {
     if [ "$multiple_tunnel" = true ]; then
         for ((i=1; i<=10; i++)); do
             service_name="tunnel$i.service"
-            if sudo systemctl is-enabled --quiet $service_name; then
+            if sudo systemctl is-enabled --quiet $service_name 2>/dev/null; then
                 sudo systemctl start $service_name > /dev/null 2>&1
                 if sudo systemctl is-active --quiet $service_name; then
                     echo "Multiple tunnel service $service_name started."
@@ -562,7 +562,7 @@ stop_tunnel() {
     multiple_tunnel=false
 
     # Check if the normal_tunnel service is installed
-    if sudo systemctl is-enabled --quiet tunnel.service; then
+    if sudo systemctl is-enabled --quiet tunnel.service 2>/dev/null; then
         normal_tunnel=true
     fi
 
@@ -594,7 +594,7 @@ stop_tunnel() {
     if [ "$multiple_tunnel" = true ]; then
         for ((i=1; i<=10; i++)); do
             service_name="tunnel$i.service"
-            if sudo systemctl is-enabled --quiet $service_name; then
+            if sudo systemctl is-enabled --quiet $service_name 2>/dev/null; then
                 sudo systemctl stop $service_name > /dev/null 2>&1
                 if sudo systemctl is-active --quiet $service_name; then
                     echo "Multiple tunnel service $service_name failed to stop."
