@@ -515,13 +515,15 @@ start_tunnel() {
         normal_tunnel=true
     fi
 
-    # Check if any multiple_tunnel services are installed
+   # Check if any multiple_tunnel services are installed
+    multiple_tunnel=false
     for ((i=1; i<=10; i++)); do
-        if sudo systemctl is-enabled --quiet tunnel$i.service; then
+        if sudo systemctl is-enabled --quiet tunnel$i.service 2>/dev/null; then
             multiple_tunnel=true
             break
         fi
     done
+
 
     if [ "$normal_tunnel" = false ] && [ "$multiple_tunnel" = false ]; then
         echo "No tunnel services are installed."
@@ -567,7 +569,7 @@ stop_tunnel() {
     # Check if any multiple_tunnel services are installed
     for ((i=1; i<=10; i++)); do
         service_name="tunnel$i.service"
-        if sudo systemctl is-enabled --quiet $service_name; then
+        if sudo systemctl is-enabled --quiet $service_name 2>/dev/null; then
             multiple_tunnel=true
             break
         fi
