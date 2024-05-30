@@ -146,6 +146,8 @@ configure_arguments() {
             done
         fi
     elif [ "$server_choice" == "1" ]; then
+        read -p "Please Enter SNI (default : sheypoor.com): " sni
+        sni=${sni:-sheypoor.com}
         read -p "Please Enter Password (Please choose the same password on both servers): " password
         read -p "Do you want to use fake upload? (yes/no): " use_fake_upload
         if [ "$use_fake_upload" == "yes" ]; then
