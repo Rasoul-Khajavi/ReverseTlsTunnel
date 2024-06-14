@@ -133,7 +133,7 @@ configure_arguments() {
             read -p "Please Enter SNI (default : sheypoor.com): " sni
             sni=${sni:-sheypoor.com}
             read -p "Please Enter Password (Please choose the same password on both servers): " password
-            arguments="--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24"
+            arguments="--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24 --connection-age:4800 --parallel-cons:18"
         else  
             arguments=()
             for ((i=1; i<=num_servers; i++)); do
