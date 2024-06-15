@@ -18,7 +18,7 @@
  ## روش اول (نصب با اسکریپت)
  
  ```
- bash <(curl -fsSL https://raw.githubusercontent.com/Rasoul-Khajavi/ReverseTlsTunnel/master/scripts/RtTunnel.sh)
+ cd && bash <(curl -fsSL https://raw.githubusercontent.com/Rasoul-Khajavi/ReverseTlsTunnel/master/scripts/RtTunnel.sh)
  ```
  
  ![1](https://raw.githubusercontent.com/Rasoul-Khajavi/ReverseTlsTunnel/master/RTT.png)
