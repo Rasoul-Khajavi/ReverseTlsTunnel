@@ -133,10 +133,10 @@ configure_arguments() {
             read -p "Please Enter SNI (default : sheypoor.com): " sni
             sni=${sni:-sheypoor.com}
             read -p "Please Enter Password (Please choose the same password on both servers): " password
-            read -p "Please Enter --connection-age (default : 4800): " con_age
-            con_age=${con_age:-4800}
-            read -p "Please Enter --parallel-cons (default : 18): " par_cons
-            par_cons=${par_cons:-18}
+            read -p "Please Enter --connection-age (default : 600): " con_age
+            con_age=${con_age:-600}
+            read -p "Please Enter --parallel-cons (default : 8): " par_cons
+            par_cons=${par_cons:-8}
             arguments="--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24 --connection-age:$con_age --parallel-cons:$par_cons"
         else  
             arguments=()
@@ -145,10 +145,10 @@ configure_arguments() {
                 read -p "Please Enter SNI for server $i (default : sheypoor.com): " sni
                 sni=${sni:-sheypoor.com}
                 read -p "Please Enter Password for server $i (Please choose the same password on both servers): " password
-                read -p "Please Enter --connection-age (default : 4800): " con_age
-                con_age=${con_age:-4800}
-                read -p "Please Enter --parallel-cons (default : 18): " par_cons
-                par_cons=${par_cons:-18}
+                read -p "Please Enter --connection-age (default : 600): " con_age
+                con_age=${con_age:-600}
+                read -p "Please Enter --parallel-cons (default : 8): " par_cons
+                par_cons=${par_cons:-8}
                 arguments+=("--kharej --iran-ip:$server_ip --iran-port:443 --toip:127.0.0.1 --toport:multiport --password:$password --sni:$sni --terminate:24 --connection-age:$con_age --parallel-cons:$par_cons")
             done
         fi
@@ -156,10 +156,10 @@ configure_arguments() {
         read -p "Please Enter SNI (default : sheypoor.com): " sni
         sni=${sni:-sheypoor.com}
         read -p "Please Enter Password (Please choose the same password on both servers): " password
-        read -p "Please Enter --connection-age (default : 4800): " con_age
-        con_age=${con_age:-4800}
-        read -p "Please Enter --parallel-cons (default : 18): " par_cons
-        par_cons=${par_cons:-18}
+        read -p "Please Enter --connection-age (default : 600): " con_age
+        con_age=${con_age:-600}
+        read -p "Please Enter --parallel-cons (default : 8): " par_cons
+        par_cons=${par_cons:-8}
         read -p "Do you want to use fake upload? (yes/no): " use_fake_upload
         if [ "$use_fake_upload" == "yes" ]; then
             read -p "Enter upload-to-download ratio (e.g., 5 for 5:1 ratio): " upload_ratio
