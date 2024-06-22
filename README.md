@@ -17,10 +17,10 @@
  ## روش اول (نصب با اسکریپت)
  
  ```
- cd && bash <(curl -fsSL https://raw.githubusercontent.com/Rasoul-Khajavi/ReverseTlsTunnel/master/scripts/RtTunnel.sh)
+ cd && bash <(curl -fsSL https://raw.githubusercontent.com/persian-michael-scott/ReverseTlsTunnel/master/scripts/RtTunnel.sh)
  ```
  
- ![1](https://raw.githubusercontent.com/Rasoul-Khajavi/ReverseTlsTunnel/master/RTT.png)
+ ![1](https://raw.githubusercontent.com/persian-michael-scott/ReverseTlsTunnel/master/RTT.png)
  
  - [آموزش در کانال @IR_TECH](https://youtube.com/watch?v=1mj1fhA2X6s)
 - به صورت سرویس نصب میشود 
